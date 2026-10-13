@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quiz JavaScript</title>
+<style>
+  :root {
+    --ink: #1b1740;
+    --ink-2: #2a2566;
+    --paper: #fffaf0;
+    --text: #1b1740;
+    --muted: #6b6896;
+    --sun: #ffc93c;
+    --coral: #ff5d73;
+    --mint: #2ec4a0;
+    --violet: #7c5cff;
+    --line: #e6dfcc;
+    --font: "Avenir Next", "Segoe UI", system-ui, -apple-system, sans-serif;
+    --mono: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html { height: 100%; }
+  body {
+    margin: 0;
+    min-height: 100%;
+    display: grid;
+    place-items: center;
+    padding: 1.25rem;
+    font-family: var(--font);
+    color: var(--text);
+    background:
+      radial-gradient(circle at 12% 18%, rgba(124,92,255,.45), transparent 42%),
+      radial-gradient(circle at 88% 82%, rgba(255,93,115,.30), transparent 40%),
+      var(--ink);
+  }
+
+  .quiz {
+    width: 100%;
+    max-width: 600px;
+    background: var(--paper);
+    border-radius: 24px;
+    padding: 2rem 1.75rem 1.75rem;
+    box-shadow: 8px 8px 0 var(--sun), 0 24px 60px rgba(0,0,0,.35);
+  }
+  [hidden] { display: none !important; }
+
+  h1 { margin: 0; font-size: clamp(2rem, 6vw, 2.8rem); line-height: 1.05; letter-spacing: -.02em; }
+  .lead { color: var(--muted); line-height: 1.55; margin: .9rem 0 1.4rem; }
+
+  /* ---- Layar mulai ---- */
+  .logo {
+    display: inline-grid; place-items: center;
+    width: 64px; height: 64px; border-radius: 18px;
+    background: var(--sun); color: var(--ink);
+    font: 800 1.7rem var(--mono);
+    transform: rotate(-6deg);
+    margin-bottom: 1.2rem;
+  }
+  .record-box {
+    display: flex; align-items: center; justify-content: space-between;
+    border: 2px dashed var(--line); border-radius: 14px;
+    padding: .8rem 1rem; margin-bottom: 1.4rem;
+  }
+  .record-box span { color: var(--muted); }
+  .record-box strong { font-size: 1.6rem; }
+
+  /* ---- Tombol ---- */
+  .btn {
+    font: inherit; font-weight: 700; font-size: 1rem;
+    cursor: pointer; width: 100%;
+    border: 0; border-radius: 14px;
+    padding: .95rem 1.2rem;
+    background: var(--ink); color: #fff;
+    box-shadow: 0 5px 0 #0a0820;
+    transition: transform .08s, box-shadow .08s;
+  }
+  .btn:hover { background: var(--ink-2); }
+  .btn:active { transform: translateY(4px); box-shadow: 0 1px 0 #0a0820; }
+  .btn:focus-visible, .option:focus-visible { outline: 3px solid var(--violet); outline-offset: 3px; }
+
+  /* ---- Soal ---- */
+  .topbar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: .9rem; }
+  .counter { font-weight: 700; }
+  .counter small { color: var(--muted); font-weight: 600; }
+  .live-score { font-weight: 700; background: var(--sun); border-radius: 99px; padding: .2rem .8rem; font-size: .9rem; }
+
+  .dots { display: flex; gap: 5px; margin-bottom: 1.4rem; }
+  .dot { flex: 1; height: 8px; border-radius: 99px; background: var(--line); transition: background .2s; }
+  .dot.current { background: var(--violet); }
+  .dot.ok { background: var(--mint); }
+  .dot.no { background: var(--coral); }
+
+  .question {
+    font-size: 1.2rem; line-height: 1.45; font-weight: 700;
+    margin: 0 0 1.2rem;
+    padding-left: 1rem; border-left: 5px solid var(--violet);
+  }
+
+  .options { display: grid; gap: .65rem; }
+  .option {
+    font: inherit; cursor: pointer; text-align: left;
+    display: flex; align-items: center; gap: .85rem;
+    background: #fff; color: var(--text);
+    border: 2px solid var(--line); border-radius: 14px;
+    padding: .7rem .9rem;
+    transition: border-color .12s, transform .12s, background .12s;
+  }
+  .option:hover:not(:disabled) { border-color: var(--violet); transform: translateX(4px); }
+  .key {
+    flex: none; display: grid; place-items: center;
+    width: 34px; height: 34px; border-radius: 9px;
+    background: var(--ink); color: #fff;
+    font: 700 .95rem var(--mono);
+    box-shadow: 0 3px 0 #0a0820;
+  }
+  .option.correct { background: #e1f8f1; border-color: var(--mint); }
+  .option.correct .key { background: var(--mint); box-shadow: 0 3px 0 #1b8f74; }
+  .option.wrong { background: #ffe9ec; border-color: var(--coral); animation: shake .3s; }
+  .option.wrong .key { background: var(--coral); box-shadow: 0 3px 0 #c93c52; }
+  .option:disabled { cursor: default; }
+  .option:disabled:not(.correct):not(.wrong) { opacity: .55; }
+  @keyframes shake { 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+
+  .explain {
+    margin-top: 1.1rem; padding: .9rem 1rem;
+    border-radius: 14px; background: #f1ecff;
+    line-height: 1.5; font-size: .95rem;
+  }
+  .explain strong { display: block; margin-bottom: .2rem; }
+  .explain.is-ok strong { color: #158a6c; }
+  .explain.is-no strong { color: #c93c52; }
+  .hint { margin: .9rem 0 0; color: var(--muted); font-size: .8rem; text-align: center; }
+  #next-btn { margin-top: 1rem; }
+
+  /* ---- Hasil ---- */
+  .result { text-align: center; }
+  .ring-wrap { position: relative; width: 190px; height: 190px; margin: 1rem auto; }
+  .ring { transform: rotate(-90deg); }
+  .ring-track { fill: none; stroke: var(--line); stroke-width: 14; }
+  .ring-fill {
+    fill: none; stroke: var(--violet); stroke-width: 14; stroke-linecap: round;
+    stroke-dasharray: 502.65; stroke-dashoffset: 502.65;
+    transition: stroke-dashoffset 1.1s cubic-bezier(.2,.8,.2,1);
+  }
+  .ring-text { position: absolute; inset: 0; display: grid; place-content: center; }
+  .ring-text b { font-size: 3.2rem; line-height: 1; }
+  .ring-text span { color: var(--muted); font-size: .85rem; }
+  .verdict { font-size: 1.3rem; font-weight: 800; margin: 0; }
+  .detail { color: var(--muted); margin: .3rem 0 1rem; }
+  .badge {
+    display: inline-block; margin-bottom: 1rem;
+    padding: .35rem .9rem; border-radius: 99px;
+    background: var(--sun); font-weight: 800; font-size: .9rem;
+    animation: pop .5s cubic-bezier(.3,1.6,.5,1);
+  }
+  @keyframes pop { from { transform: scale(.4); opacity: 0; } }
+  .result .record-box { justify-content: center; gap: .8rem; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+  @media (max-width: 420px) { .quiz { padding: 1.5rem 1.1rem 1.25rem; box-shadow: 5px 5px 0 var(--sun), 0 20px 50px rgba(0,0,0,.35); } }
+</style>
+</head>
+<body>
+  <main class="quiz" id="quiz">
+
+    <!-- Layar mulai -->
+    <section id="start-screen">
+      <div class="logo" aria-hidden="true">JS</div>
+      <h1>Seberapa jago JavaScript kamu?</h1>
+      <p class="lead">10 soal singkat, langsung ada penjelasan di setiap jawaban. Tekan tombol A–D di keyboard untuk menjawab lebih cepat.</p>
+      <div class="record-box"><span>Skor tertinggi</span><strong id="start-high-score">0</strong></div>
+      <button class="btn" type="button" data-action="start">Mulai quiz</button>
+    </section>
+
+    <!-- Layar soal -->
+    <section id="question-screen" hidden>
+      <div class="topbar">
+        <div class="counter" id="counter"></div>
+        <div class="live-score" id="live-score"></div>
+      </div>
+      <div class="dots" id="dots" aria-hidden="true"></div>
+      <h2 class="question" id="question-text"></h2>
+      <div class="options" id="options"></div>
+      <div class="explain" id="explain" hidden aria-live="polite"></div>
+      <button class="btn" type="button" id="next-btn" data-action="next" hidden>Lanjut</button>
+      <p class="hint" id="hint">Tekan A, B, C, atau D untuk memilih</p>
+    </section>
+
+    <!-- Layar hasil -->
+    <section class="result" id="result-screen" hidden>
+      <h1>Hasil quiz</h1>
+      <div class="ring-wrap">
+        <svg class="ring" viewBox="0 0 180 180" width="190" height="190" aria-hidden="true">
+          <circle class="ring-track" cx="90" cy="90" r="80"></circle>
+          <circle class="ring-fill" id="ring-fill" cx="90" cy="90" r="80"></circle>
+        </svg>
+        <div class="ring-text"><b id="final-score">0</b><span>dari 100</span></div>
+      </div>
+      <p class="verdict" id="verdict"></p>
+      <p class="detail" id="result-detail"></p>
+      <span class="badge" id="new-record" hidden>Rekor baru!</span>
+      <div class="record-box"><span>Skor tertinggi</span><strong id="result-high-score">0</strong></div>
+      <button class="btn" type="button" data-action="restart">Main lagi</button>
+    </section>
+
+  </main>
+
+<script>
+'use strict';
+
+/* ====== DATA ====== */
+const QUESTIONS = [
+  {
+    text: 'Keyword mana yang mendeklarasikan variabel yang tidak bisa di-reassign?',
+    options: ['var', 'let', 'const', 'static'],
+    answer: 2,
+    explain: 'const membuat binding yang tidak bisa diberi nilai baru. Isi objek atau array-nya tetap bisa berubah.',
+  },
+  {
+    text: 'Apa hasil dari typeof null?',
+    options: ['"null"', '"object"', '"undefined"', '"number"'],
+    answer: 1,
+    explain: 'Ini bug lama JavaScript yang dipertahankan demi kompatibilitas. typeof null selalu "object".',
+  },
+  {
+    text: 'Method array mana yang mengembalikan array baru hasil transformasi tiap elemen?',
+    options: ['forEach()', 'filter()', 'map()', 'push()'],
+    answer: 2,
+    explain: 'map() menjalankan fungsi pada setiap elemen dan mengumpulkan hasilnya ke array baru.',
+  },
+  {
+    text: 'Properti mana yang aman dari XSS untuk menampilkan input pengguna?',
+    options: ['innerHTML', 'textContent', 'outerHTML', 'document.write'],
+    answer: 1,
+    explain: 'textContent memperlakukan isi sebagai teks biasa, jadi tag HTML dari pengguna tidak akan dijalankan.',
+  },
+  {
+    text: 'Apa itu event delegation?',
+    options: [
+      'Memasang listener di setiap elemen anak',
+      'Memasang satu listener di parent untuk menangani event anak',
+      'Menghapus semua event listener',
+      'Menjalankan event secara asinkron',
+    ],
+    answer: 1,
+    explain: 'Event bubbling membuat event dari anak sampai ke parent, sehingga satu listener cukup untuk banyak elemen.',
+  },
+  {
+    text: 'Sintaks arrow function yang benar adalah...',
+    options: ['function => () {}', '() => {}', '=> () {}', '() -> {}'],
+    answer: 1,
+    explain: 'Bentuknya (parameter) => { badan }. Arrow function tidak punya this sendiri.',
+  },
+  {
+    text: 'Method apa yang menyimpan data ke LocalStorage?',
+    options: ['localStorage.save()', 'localStorage.put()', 'localStorage.setItem()', 'localStorage.add()'],
+    answer: 2,
+    explain: 'setItem(key, value) menyimpan data berupa string. Ambil kembali dengan getItem(key).',
+  },
+  {
+    text: 'Apa hasil dari "5" + 3 di JavaScript?',
+    options: ['8', '"53"', 'NaN', 'Error'],
+    answer: 1,
+    explain: 'Operator + dengan salah satu operand string akan menyambung teks, bukan menjumlahkan angka.',
+  },
+  {
+    text: 'Apa fungsi JSON.stringify()?',
+    options: [
+      'Mengubah string JSON menjadi objek',
+      'Mengubah objek JavaScript menjadi string JSON',
+      'Menghapus properti dari objek',
+      'Menggabungkan dua objek',
+    ],
+    answer: 1,
+    explain: 'stringify mengubah objek menjadi teks JSON, berguna untuk menyimpan data ke LocalStorage. Kebalikannya adalah JSON.parse().',
+  },
+  {
+    text: 'Apa perbedaan === dengan == di JavaScript?',
+    options: [
+      'Tidak ada perbedaan',
+      '=== membandingkan nilai dan tipe data, == hanya nilai setelah konversi tipe',
+      '=== hanya untuk angka',
+      '== lebih ketat daripada ===',
+    ],
+    answer: 1,
+    explain: '=== (strict equality) tidak melakukan konversi tipe, jadi 5 === "5" bernilai false, sedangkan 5 == "5" bernilai true.',
+  },
+];
+
+const STORAGE_KEY = 'quiz-js-high-score';
+const KEYS = ['A', 'B', 'C', 'D'];
+const RING_LENGTH = 2 * Math.PI * 80;
+
+/* ====== STATE ====== */
+const state = {
+  current: 0,
+  score: 0,
+  answered: false,
+  results: [], // true / false per soal
+};
+
+/* ====== ELEMEN DOM ====== */
+const $ = (id) => document.getElementById(id);
+const el = {
+  quiz: $('quiz'),
+  start: $('start-screen'),
+  question: $('question-screen'),
+  result: $('result-screen'),
+  counter: $('counter'),
+  liveScore: $('live-score'),
+  dots: $('dots'),
+  text: $('question-text'),
+  options: $('options'),
+  explain: $('explain'),
+  next: $('next-btn'),
+  hint: $('hint'),
+  ring: $('ring-fill'),
+  finalScore: $('final-score'),
+  verdict: $('verdict'),
+  detail: $('result-detail'),
+  record: $('new-record'),
+  startHigh: $('start-high-score'),
+  resultHigh: $('result-high-score'),
+};
+
+/* ====== LOCALSTORAGE ====== */
+const getHighScore = () => {
+  try {
+    return Number(localStorage.getItem(STORAGE_KEY)) || 0;
+  } catch {
+    return 0;
+  }
+};
+
+const saveHighScore = (value) => {
+  try {
+    localStorage.setItem(STORAGE_KEY, String(value));
+  } catch {
+    /* storage tidak tersedia, abaikan */
+  }
+};
+
+/* ====== TAMPILAN ====== */
+const showScreen = (screen) => {
+  [el.start, el.question, el.result].forEach((s) => { s.hidden = s !== screen; });
+};
+
+const renderDots = () => {
+  el.dots.replaceChildren();
+  QUESTIONS.forEach((_, i) => {
+    const dot = document.createElement('span');
+    dot.className = 'dot';
+    if (i === state.current) dot.classList.add('current');
+    else if (state.results[i] === true) dot.classList.add('ok');
+    else if (state.results[i] === false) dot.classList.add('no');
+    el.dots.append(dot);
+  });
+};
+
+const renderQuestion = () => {
+  const { text, options } = QUESTIONS[state.current];
+  state.answered = false;
+
+  el.counter.textContent = `Soal ${state.current + 1}/${QUESTIONS.length}`;
+  el.liveScore.textContent = `${state.score} benar`;
+  el.text.textContent = text;
+  el.options.replaceChildren();
+  el.explain.hidden = true;
+  el.next.hidden = true;
+  el.hint.hidden = false;
+  renderDots();
+
+  options.forEach((label, index) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'option';
+    btn.dataset.index = String(index);
+
+    const key = document.createElement('span');
+    key.className = 'key';
+    key.textContent = KEYS[index];
+
+    const content = document.createElement('span');
+    content.textContent = label; // aman dari XSS
+
+    btn.append(key, content);
+    el.options.append(btn);
+  });
+};
+
+const verdictFor = (percent) => {
+  if (percent === 100) return 'Sempurna! Kamu siap jadi mentor.';
+  if (percent >= 80) return 'Keren! Dasar JavaScript-mu kuat.';
+  if (percent >= 60) return 'Lumayan! Sedikit lagi latihan.';
+  if (percent >= 40) return 'Masih bisa naik. Coba ulangi materinya.';
+  return 'Tenang, semua orang mulai dari nol. Coba lagi!';
+};
+
+const renderResult = () => {
+  const total = QUESTIONS.length;
+  const percent = Math.round((state.score / total) * 100);
+  const isRecord = percent > getHighScore();
+
+  if (isRecord) saveHighScore(percent);
+
+  el.finalScore.textContent = String(percent);
+  el.verdict.textContent = verdictFor(percent);
+  el.detail.textContent = `Benar ${state.score} dari ${total} soal`;
+  el.record.hidden = !isRecord;
+  el.resultHigh.textContent = String(getHighScore());
+  el.startHigh.textContent = String(getHighScore());
+
+  // Animasi cincin skor
+  el.ring.style.strokeDashoffset = String(RING_LENGTH);
+  showScreen(el.result);
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    el.ring.style.strokeDashoffset = String(RING_LENGTH * (1 - percent / 100));
+  }));
+};
+
+/* ====== LOGIKA ====== */
+const startQuiz = () => {
+  state.current = 0;
+  state.score = 0;
+  state.results = [];
+  showScreen(el.question);
+  renderQuestion();
+};
+
+const selectAnswer = (button) => {
+  if (state.answered) return;
+  state.answered = true;
+
+  const chosen = Number(button.dataset.index);
+  const { answer, explain } = QUESTIONS[state.current];
+  const isCorrect = chosen === answer;
+
+  state.results[state.current] = isCorrect;
+  if (isCorrect) state.score += 1;
+
+  el.options.querySelectorAll('.option').forEach((opt) => {
+    const idx = Number(opt.dataset.index);
+    opt.disabled = true;
+    if (idx === answer) opt.classList.add('correct');
+    else if (idx === chosen) opt.classList.add('wrong');
+  });
+
+  // Penjelasan jawaban
+  el.explain.replaceChildren();
+  const title = document.createElement('strong');
+  title.textContent = isCorrect ? 'Benar!' : 'Belum tepat';
+  const body = document.createElement('span');
+  body.textContent = explain;
+  el.explain.append(title, body);
+  el.explain.className = `explain ${isCorrect ? 'is-ok' : 'is-no'}`;
+  el.explain.hidden = false;
+
+  el.liveScore.textContent = `${state.score} benar`;
+  renderDots();
+
+  const isLast = state.current === QUESTIONS.length - 1;
+  el.next.textContent = isLast ? 'Lihat hasil' : 'Soal berikutnya';
+  el.next.hidden = false;
+  el.hint.hidden = true;
+  el.next.focus();
+};
+
+const nextQuestion = () => {
+  if (state.current < QUESTIONS.length - 1) {
+    state.current += 1;
+    renderQuestion();
+  } else {
+    renderResult();
+  }
+};
+
+/* ====== EVENT DELEGATION: satu listener klik untuk seluruh quiz ====== */
+el.quiz.addEventListener('click', (event) => {
+  const option = event.target.closest('.option');
+  if (option) {
+    selectAnswer(option);
+    return;
+  }
+
+  const actionBtn = event.target.closest('[data-action]');
+  if (!actionBtn) return;
+
+  const actions = {
+    start: startQuiz,
+    next: nextQuestion,
+    restart: startQuiz,
+  };
+  actions[actionBtn.dataset.action]?.();
+});
+
+/* Shortcut keyboard: A-D untuk memilih jawaban */
+document.addEventListener('keydown', (event) => {
+  if (el.question.hidden || state.answered) return;
+  const index = KEYS.indexOf(event.key.toUpperCase());
+  if (index === -1) return;
+  el.options.querySelector(`.option[data-index="${index}"]`)?.click();
+});
+
+/* ====== INIT ====== */
+el.startHigh.textContent = String(getHighScore());
+</script>
+</body>
+</html>
